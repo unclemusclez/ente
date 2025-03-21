@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/ente-io/museum/pkg/controller/collections"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ente-io/museum/pkg/controller/collections"
 
 	"github.com/ente-io/museum/ente/base"
 	"github.com/ente-io/museum/pkg/controller/emergency"
@@ -784,25 +785,57 @@ func main() {
 	log.Println("Shutting down server...")
 	discordController.NotifyShutdown()
 }
-
 func runServer(environment string, server *gin.Engine) {
 	useTLS := viper.GetBool("http.use-tls")
+	host := viper.GetString("http.host") // Default to "" for dual-stack
+	port := viper.GetString("http.port") // Custom port
+
+	if host == "" {
+		host = "" // Leave empty for default dual-stack (IPv4 + IPv6)
+	}
+	if port == "" {
+		if useTLS {
+			port = "443"
+		} else {
+			port = "8080"
+		}
+	}
+
+	address := fmt.Sprintf("%s:%s", host, port)
+
 	if useTLS {
 		certPath, err := config.CredentialFilePath("tls.cert")
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		keyPath, err := config.CredentialFilePath("tls.key")
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		log.Fatal(server.RunTLS(":443", certPath, keyPath))
+		log.Fatal(server.RunTLS(address, certPath, keyPath))
 	} else {
-		server.Run(":8080")
+		log.Fatal(server.Run(address))
 	}
 }
+
+// func runServer(environment string, server *gin.Engine) {
+// 	useTLS := viper.GetBool("http.use-tls")
+// 	if useTLS {
+// 		certPath, err := config.CredentialFilePath("tls.cert")
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+
+// 		keyPath, err := config.CredentialFilePath("tls.key")
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+
+// 		log.Fatal(server.RunTLS(":443", certPath, keyPath))
+// 	} else {
+// 		server.Run(":8080")
+// 	}
+// }
 
 func setupLogger(environment string) {
 	log.SetReportCaller(true)
