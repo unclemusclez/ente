@@ -787,20 +787,20 @@ func main() {
 }
 func runServer(environment string, server *gin.Engine) {
 	useTLS := viper.GetBool("http.use-tls")
-	host := viper.GetString("http.host") // Default to "" for dual-stack
-	port := viper.GetString("http.port") // Custom port
+	host := viper.GetString("http.host") // Default to "" for dual-stack (IPv4 + IPv6)
+	port := viper.GetString("http.port") // Custom port, overrides defaults
 
-	if host == "" {
-		host = "" // Leave empty for default dual-stack (IPv4 + IPv6)
-	}
+	// If port is not specified, fall back to defaults based on TLS
 	if port == "" {
 		if useTLS {
-			port = "443"
+			port = "443" // Default TLS port
 		} else {
-			port = "8080"
+			port = "8080" // Default non-TLS port
 		}
 	}
 
+	// If host is empty, use dual-stack (IPv4 + IPv6)
+	// No need to set a default like "0.0.0.0" here to preserve IPv6 support
 	address := fmt.Sprintf("%s:%s", host, port)
 
 	if useTLS {
@@ -812,8 +812,10 @@ func runServer(environment string, server *gin.Engine) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Infof("Starting TLS server on %s", address)
 		log.Fatal(server.RunTLS(address, certPath, keyPath))
 	} else {
+		log.Infof("Starting server on %s", address)
 		log.Fatal(server.Run(address))
 	}
 }
